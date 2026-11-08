@@ -1,0 +1,98 @@
+# Lantiq VR9 SSC "SPI-TDM" — device tree binding (draft)
+
+This is a draft binding for a generic PCM/TDM transport that uses the Lantiq
+VR9 Synchronous Serial Controller (SSC) as a **slave**. The peer device on the
+bus supplies the bit clock and frame sync; the driver shifts fixed-size frames
+in and out. The transport itself is peer-agnostic.
+
+The SSC block already has a `spi` node in `xway.dtsi` for the SPI-master use
+case (`lantiq,xrx200-spi`, disabled on most boards). On a board where the SSC
+is wired as a TDM slave instead, override that node (or add a separate node at
+the same `reg`) with the compatible below; a board cannot use both.
+
+```yaml
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/tdm/lantiq,xrx200-ssc-pcm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Lantiq VR9 SSC PCM/TDM slave transport
+
+maintainers:
+  - open DECT project <nobody@example.invalid>
+
+description: |
+  The Lantiq VR9 Synchronous Serial Controller (SSC) used as a PCM/TDM slave.
+  A peer device supplies the bit clock and frame sync; the controller shifts
+  fixed-size PCM frames. Exposed as /dev/ssc-pcm0.
+
+properties:
+  compatible:
+    enum:
+      - lantiq,xrx200-ssc-pcm
+      - lantiq,vr9-ssc-pcm
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 3
+    description: RX, TX and error interrupts of the SSC.
+
+  interrupt-names:
+    items:
+      - const: rx
+      - const: tx
+      - const: err
+
+  clocks:
+    maxItems: 1
+    description: |
+      Module clock gate (PMU SPI bit). Optional: on xway the legacy clkdev
+      entry supplies it when the node is named spi@e100800.
+
+  enable-gpios:
+    maxItems: 1
+    description: |
+      Board-level enable for the bus clock source (for example a gate in
+      front of the peer's bit clock). Driven active at probe, so it is
+      asserted before any consumer releases the peer from reset.
+
+  pinctrl-0: true
+  pinctrl-names: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    tdm@e100800 {
+        compatible = "lantiq,xrx200-ssc-pcm";
+        reg = <0xe100800 0x100>;
+        interrupt-parent = <&icu0>;
+        interrupts = <22 23 24>;
+        interrupt-names = "rx", "tx", "err";
+        pinctrl-names = "default";
+        pinctrl-0 = <&ssc_pcm_pins>;
+        enable-gpios = <&gpio 7 GPIO_ACTIVE_HIGH>;
+    };
+```
+
+Notes for whoever finalises this for upstream:
+
+- The SSC `ID` register reads `0x08084528` on the 7412 (native endian):
+  8-word RX and TX FIFOs. The block matches the mainline `spi-lantiq-ssc`
+  one, so the register map in `src/ssc_pcm_hw.h` is shared with that driver.
+  Registers are native-endian on this big-endian SoC: use
+  `__raw_readl()`/`__raw_writel()`, not `readl()`/`writel()`.
+- The driver does not use the interrupts yet (the receive engine polls); the
+  property is kept so the binding does not change when it does.
+- The module clock is the PMU SPI gate (`BIT(8)`); on xway legacy clkdev it is
+  registered as `clkdev_add_pmu("1e100800.spi", NULL, ...)`, so the clock only
+  resolves when the node's unit name is `spi@e100800`. Prefer that name.

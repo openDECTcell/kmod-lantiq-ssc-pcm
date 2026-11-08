@@ -1,0 +1,19 @@
+# Build artifacts
+*.o
+*.ko
+*.mod
+*.mod.c
+*.cmd
+.*.cmd
+Module.symvers
+modules.order
+built-in.a
+
+# SDK and staged build output
+build/
+deploy/
+*.apk
+
+# Editor cruft
+*.swp
+*~

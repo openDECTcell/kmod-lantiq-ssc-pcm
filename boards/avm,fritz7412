@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Board profile for openDECTcell: FRITZ!Box 7412 (Lantiq VR9 / xrx200).
+#
+# Reference copy. openDECTcell reads /usr/share/opendectcell/boards/<board_name>; the
+# repository copy belongs in opendectcell/boards/avm,fritz7412. Keys and defaults
+# follow openDECTcell docs/hardware-abstraction.md §4.
+#
+# Values marked "open" are not yet confirmed; see
+# docs/cross-model-7520-vs-7412.md and the openDECTcell 7412 notes.
+
+name=FRITZ!Box 7412
+transport=lantiq-ssc
+
+# DECT baseband firmware: AVM-proprietary; the user supplies these files from their own box, they are not part of this repository
+fw_family=441
+fw_firstlevel=dectfw_firstlevel_441.hex
+fw_secondlevel=dectfw_secondlevel_441.hex
+fw_firstlevel_sha256=72f8e27a0d01c301a05a8b373a71887af882a6cebcb1a30bd4a435580e1045f2
+fw_secondlevel_sha256=4fabee65d07a3214f9083de81ae54089f01bbfccb4cdbb672f37487a09cdfaa6
+
+# Mode word: low byte -> TLV tag 7; bit 8 -> first-level boot flag.
+dect_mode=0x119
+
+# Firmware-load UART (shared with the serial console).
+uart=/dev/ttyLTQ0
+uart_is_console=1
+uart_baud_rom=9600
+uart_baud_stub=115200
+
+# PCM frame layout (open; SSC shifts 32-bit words, 8 slots x 16 bit = 16 B).
+pcm_words_per_frame=4
+pcm_ctrl_slot=-1
+pcm_voice_slots=-1
+
+# Factory DECT config block and RFPI fallback (open).
+factory_cfg=
+rfpi_fallback=maca
+
+# Parallel calls supported in this mode (approximate).
+max_calls=3

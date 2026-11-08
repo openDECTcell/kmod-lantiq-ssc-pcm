@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Draft board fragment: use the Lantiq VR9 SSC as a PCM/TDM slave on the
+ * AVM FRITZ!Box 7412 (target lantiq/xrx200).
+ *
+ * This is the "upstream" path: with these nodes the driver binds by
+ * compatible, gets its resources and clock from DT, and muxes the pins through
+ * pinctrl. It is not applied on a stock image (the stock OpenWrt 25.12.6 DTB
+ * keeps spi@e100800 disabled), which is why the driver has a bring-up path;
+ * see docs/7412-hardware-bringup.md. The pin roles below are the ones the
+ * bring-up path uses and that were verified on hardware on 2026-10-28.
+ *
+ * Note: the clock only resolves via the xway clkdev entry when the node's unit
+ * name is "spi@e100800", hence the override of the existing spi node rather
+ * than a new node at the same address.
+ */
+
+&spi {
+	compatible = "lantiq,xrx200-ssc-pcm";
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&ssc_pcm_pins>;
+
+	/* GPIO7 gates the peer's PCM bit clock; must be high before the
+	 * peer is released from reset, so the driver asserts it at probe. */
+	enable-gpios = <&gpio 7 GPIO_ACTIVE_HIGH>;
+};
+
+&gpio {
+	/*
+	 * pinctrl-xway names the SPI pins for master mode. As a slave the SSC
+	 * transmits on spi_di (GPIO16) and receives on spi_do (GPIO17); the
+	 * peer drives the bit clock (spi_clk, GPIO18). GPIO10 is the SSC's
+	 * chip select 4, an output as in the stock firmware. GPIO9 is the
+	 * frame-sync input; it stays a plain GPIO and is not muxed as spi_cs5.
+	 */
+	ssc_pcm_pins: ssc-pcm {
+		mux {
+			lantiq,groups = "spi_di", "spi_do", "spi_clk",
+					"spi_cs4";
+			lantiq,function = "spi";
+		};
+		out {
+			lantiq,pins = "io10", "io16";
+			lantiq,output = <1>;
+		};
+		in {
+			lantiq,pins = "io17", "io18";
+			lantiq,output = <0>;
+		};
+	};
+};
